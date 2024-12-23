@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: "Gill Sans", sans-serif;
+  background-color: #1a1c20;
+  color: white;
+}
+
+nav {
+  background-color: #1a1c20;
+}
+
+.cards {
+  background-color: #121315;
+  border-radius: 20px;
+}
