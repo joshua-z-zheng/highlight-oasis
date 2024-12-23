@@ -1,5 +1,5 @@
-import "./globals.css"
-import Scorecard from "./components/Scorecard";
+import "../globals.css"
+import Scorecard from "../components/Scorecard";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
