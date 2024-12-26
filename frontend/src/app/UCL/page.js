@@ -1,7 +1,6 @@
-export default function Page(){
-    return (
-        <div className="flex flex-col p-6">
-            Coming soon!
-        </div>
-    );
+import "../globals.css"
+import Matches from "../components/Matches";
+
+export default async function Page() { 
+  return <Matches competition="CL" matchdays="13"/>
 }

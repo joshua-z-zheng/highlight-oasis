@@ -1,152 +1,76 @@
-"use client";
-
 import "./globals.css"
+import Matches from "./components/Matches";
+import Link from "next/link";
 import Scorecard from "./components/Scorecard";
-import { useState, useEffect } from "react";
-
-
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
+import { FaLongArrowAltRight } from "react-icons/fa";
+import { GiSoccerBall } from "react-icons/gi";
 
 export default function Page() { 
-
-  const [matchData, setMatchData] = useState(null);
-  const [youtubeData, setYoutubeData]= useState(null);
-  const [linkStates, setLinkStates] = useState(null);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const matchResponse = await fetch(`${BACKEND_URL}/api/matchday_scores?competition=PL`, {
-          cache: "no-store"  
-        });
-        const youtubeResponse = await fetch(`${BACKEND_URL}/api/highlights`, {
-          cache: "no-store"
-        });
-
-        if (!matchResponse.ok){
-          throw new Error("HTTP error!");
-        }
-        if (!youtubeResponse.ok){
-          throw new Error("HTTP error!");
-        }
-
-        const mData = await matchResponse.json();
-        const yData = await youtubeResponse.json();
-
-        setMatchData(mData);
-        setYoutubeData(yData);
-
-      } catch (error){
-        console.error("Error fetching data: ", error);
-      }
-    };
-    fetchData();
-  }, []);  
-
-  useEffect(() => {
-    if (matchData && matchData.matches.length > 0){
-      const savedStates = JSON.parse(localStorage.getItem("linkStates")) || {};
-      const initialStates = matchData.matches.reduce((acc, _, index) => {
-        acc[index] = savedStates[index] || false;
-        return acc;
-      }, {})
-      setLinkStates(initialStates);
-    }
-  }, [matchData, youtubeData])
-
-  useEffect(() => {
-    if (linkStates){
-      localStorage.setItem("linkStates", JSON.stringify(linkStates));
-    }
-  }, [linkStates]);
-
-  if (!matchData || !youtubeData || !linkStates){
-    return <div className="p-6 text-center text-xl">Loading...</div>
-  }
-
-  matchData.matches.forEach(match => {
-    youtubeData.items.forEach(video =>{
-      const names = match.homeTeam.shortName.split(" ");
-      let flag = true;
-      names.forEach(word => {
-        flag &= video.snippet.title.includes(word);
-      })
-      if (flag){
-        const videoId = video.snippet.resourceId.videoId;
-        match.url = `https://youtube.com/watch?v=${videoId}`;
-      }
-    })
-  });
-
   return (
-    <div className="flex flex-col space-y-6 p-6">
-      <div className="cards flex flex-col justify-center items-center">
-        <h1 className="text-2xl p-4">
-          Recent Highlights:
-        </h1>
-        <div className="flex items-center pb-6 overflow-x-auto whitespace-nowrap w-full">
-          {matchData.matches.map((match, index) => (
-            !linkStates[index] && (
-              <div key={index} className="last:mr-4">
-                <a href={match.url} target="_blank" rel="noopener noreferrer" onClick={() => {
-                  setLinkStates(prev => ({
-                    ...prev,
-                    [index]: true,
-                  }))
-                }}>
-                  <Scorecard 
-                    league={match.competition.name}
-                    team1={match.homeTeam.shortName}
-                    team2={match.awayTeam.shortName}
-                    score1="?"
-                    score2="?"
-                    logo1={match.homeTeam.crest}
-                    logo2={match.awayTeam.crest}
-                  />
-                  <span>{linkStates[index] ? "(Clicked)" : "(not clicked)"}</span>
-                </a>
-              </div>
-            )
-          ))}
+    <div className="flex flex-col justify-center bg-green-800">
+      <div className="flex flex-col space-y-3 p-6 text-center bg-green-700">
+        <div className="flex text-center justify-center items-center space-x-4">
+          <GiSoccerBall size={40}/>
+          <h1 className="text-5xl">Spoiler-free sports.</h1>
         </div>
+        <h2 className="text-3xl">Presenting the ultimate highlights tracker for sports fans on a tight schedule.</h2>
+        <div className="flex mx-auto p-6 text-left justify-center items-center">
+          <Scorecard 
+              league="CL"
+              team1="Dortmund"
+              team2="Real Madrid"
+              score1="?"
+              score2="?"
+              marginLeft="0"
+          />
+          <div className="flex flex-col items-center text-center p-4 w-1/4">
+            <h3 className="px-4">We track ongoing and upcoming matches, adding the highlights as soon as they're out!</h3>
+            <FaLongArrowAltRight size={50} />
+          </div>
+          <Scorecard 
+              league="CL"
+              team1="Dortmund"
+              team2="Real Madrid"
+              score1="?"
+              score2="?"
+              marginLeft="0"
+              simulateHover={true}
+          />
+          <div className="flex flex-col items-center text-center p-6 w-1/4">
+            <h3 className="px-4">Scores are only revealed after you've viewed the highlights, and we'll move the match into the "viewed" section.</h3>
+            <FaLongArrowAltRight size={50} />
+          </div>
+          <Scorecard 
+              league="CL"
+              team1="Dortmund"
+              team2="Real Madrid"
+              score1="0"
+              score2="2"
+              marginLeft="0"
+          />
+        </div>
+        <h2 className="text-3xl">Enjoy your entertainment on their own schedule, on demand and spoiler-free.</h2>
+        <h2 className="text-3xl">Click on a competition below to get started!</h2>
       </div>
-      <div className="cards flex flex-col justify-center items-center">
-        <h1 className="text-2xl p-4">
-          Viewed Highlights:
-        </h1>
-        <div className="flex justify-center items-center pb-6 space-x-4">
-          {matchData.matches.map((match, index) => (
-            linkStates[index] && (
-              <div key={index} className="last:mr-4">
-                <a href={match.url} target="_blank" rel="noopener noreferrer" onClick={() => {
-                  setLinkStates(prev => ({
-                    ...prev,
-                    [index]: true,
-                  }))
-                }}>
-                  <Scorecard 
-                    league={match.competition.name}
-                    team1={match.homeTeam.shortName}
-                    team2={match.awayTeam.shortName}
-                    score1={match.score.fullTime.home}
-                    score2={match.score.fullTime.away}
-                    logo1={match.homeTeam.crest}
-                    logo2={match.awayTeam.crest}
-                  />
-                  <span>{linkStates[index] ? "(Clicked)" : "(not clicked)"}</span>
-                </a>
-              </div>
-            )
-          ))}
-        </div>
+      <div className="flex flex-col space-y-2 p-6 text-center text-xl">
+        <Link href="../premier-league">
+          <div className="cards p-6 hover:bg-green-500 border-green-500 border-2">
+            Premier League
+          </div>
+        </Link>
+        <Link href="../UCL">
+          <div className="cards p-6 hover:bg-green-500 border-green-500 border-2">
+            UEFA Champions League
+          </div>
+        </Link>
       </div>
-      <div className="cards flex flex-col justify-center items-center">
-        <h1 className="text-2xl p-4">
-          Upcoming Matches:
-        </h1>
-        <div className="flex justify-center items-center pb-6 space-x-4">
-          Coming soon!
-        </div>
+      <div className="text-center p-6">
+        <h2 className="text-xl">Disclaimer:</h2>
+        <p>
+          This website is a personal, non-commercial project created to compile football highlights for informational purposes. 
+          It is not affiliated with or endorsed by the Premier League, UEFA Champions League, or any other competition, club, or governing body. 
+          All trademarks, logos, and third-party content belong to their respective owners.
+        </p>
       </div>
     </div>
   );
