@@ -63,9 +63,9 @@ def fetch_club_flag(id):
         response.raise_for_status()
         club_data = response.json()
         flag = club_data.get("area", {}).get("flag")
-        return flag
+        return (True, flag)
     except requests.exceptions.RequestException as e:
-        return None
+        return (False, None)
 
 @app.route("/api/teams/<int:id>", methods=["GET"])
 def get_club_flag(id):
@@ -73,8 +73,8 @@ def get_club_flag(id):
     if entry:
         return jsonify({"id": id, "flag": entry.flag}), 200
     
-    team_flag = fetch_club_flag(id)
-    if not team_flag:
+    success, team_flag = fetch_club_flag(id)
+    if not success:
         return jsonify({"error": "Failed to fetch data"}), 500
     
     db.session.execute(
