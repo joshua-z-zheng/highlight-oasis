@@ -14,6 +14,7 @@ CORS(app)
 
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///teams.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
 db = SQLAlchemy(app)
 
 class Teams(db.Model):
@@ -24,10 +25,12 @@ with app.app_context():
     db.create_all()
 
 FOOTBALL_API_KEY = os.getenv("FOOTBALL_DATA_API_KEY")
-FOOTBALL_URL = "https://api.football-data.org/v4"
-
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_DATA_API_KEY")
+FOOTBALL_URL = "https://api.football-data.org/v4"
 YOUTUBE_URL = "https://www.googleapis.com/youtube/v3"
+
+app.config["FOOTBALL_API_KEY"] = FOOTBALL_API_KEY
+app.config["YOUTUBE_API_KEY"] = YOUTUBE_API_KEY
 
 def fetch_playlist_videos(playlist_id, num_videos):
     next_page_token = None
@@ -142,6 +145,15 @@ def youtube_uploads():
         return jsonify({"items" : playlist_items})
     except requests.exceptions.RequestException as e:
         return jsonify({"error": str(e)}), 500
+    
+@app.errorhandler(404)
+def not_found_error(e):
+    return "Page not found.", 404
+
+@app.errorhandler(500)
+def internal_error(e):
+    return "An internal server error occurred. Please try again later.", 500
+
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run()
