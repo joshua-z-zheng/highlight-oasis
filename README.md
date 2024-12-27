@@ -1,5 +1,5 @@
 # Highlight Oasis
-
+![preview](https://github.com/user-attachments/assets/0aa2ad9d-2563-4ba9-b54c-e59dc6ec63ff)
 ## Setup
 1. Clone this repository
 2. Navigate to ```/frontend``` and run ```npm install```
