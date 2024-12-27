@@ -8,11 +8,11 @@ export default function Scorecard ( {league, team1, team2, logo1, logo2, score1,
                 <div className="flex">
                     <div className="flex flex-col space-y-2 p-2 pt-1">
                         <div className="flex space-x-2 items-center">
-                            {/* <img src={logo1} className="h-5 w-5"/> */}
+                            <img src={logo1} className="h-5 w-5"/>
                             <h3>{team1}</h3>
                         </div>
                         <div className="flex space-x-2 items-center">
-                            {/* <img src={logo2} className="h-5 w-5"/> */}
+                            <img src={logo2} className="h-5 w-5"/>
                             <h3>{team2}</h3>
                         </div>
                     </div>

@@ -19,89 +19,121 @@ export default function Matches( {competition, matchdays, matchday = -1} ) {
     const [youtubeData, setYoutubeData]= useState(null);
     const [linkStates, setLinkStates] = useState(null);
     const [error, setError] = useState(null);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchData = async () => {
-        try {
-            const matchResponse = await fetch(`${BACKEND_URL}/api/matchday_scores?competition=${competition}&matchday=${matchday}`, {
-                cache: "no-store"  
-            });
-            const youtubeResponse = await fetch(`${BACKEND_URL}/api/highlights?competition=${competition}`, {
-                cache: "no-store"
-            });
+            try {
+                const matchResponse = await fetch(`${BACKEND_URL}/api/matchday_scores?competition=${competition}&matchday=${matchday}`, {
+                    cache: "no-store"  
+                });
+                const youtubeResponse = await fetch(`${BACKEND_URL}/api/highlights?competition=${competition}`, {
+                    cache: "no-store"
+                });
 
-            if (!matchResponse.ok){
-                throw new Error("HTTP error!");
+                if (!matchResponse.ok){
+                    throw new Error("HTTP error!");
+                }
+                if (!youtubeResponse.ok){
+                    throw new Error("HTTP error!");
+                }
+
+                const mData = await matchResponse.json();
+                const yData = await youtubeResponse.json();
+
+                setMatchData(mData);
+                setYoutubeData(yData);
+                setError(null);
+
+            } catch (err){
+                console.error("Error fetching data: ", err);
+                setError(err.message);
             }
-            if (!youtubeResponse.ok){
-                throw new Error("HTTP error!");
-            }
-
-            const mData = await matchResponse.json();
-            const yData = await youtubeResponse.json();
-
-            setMatchData(mData);
-            setYoutubeData(yData);
-            setError(null);
-
-        } catch (err){
-            console.error("Error fetching data: ", err);
-            setError(err.message);
-        }
         };
         fetchData();
     }, []); 
 
     useEffect(() => {
         if (matchData && matchData.matches.length > 0){
-        const savedStates = JSON.parse(localStorage.getItem("linkStates")) || {};
-        let initialStates = {
-            ...savedStates,
-            ...matchData.matches.reduce((acc, match) => {
-                acc[match.id] = savedStates[match.id] || false;
-                return acc;
-            }, {}),
-        };
+            const savedStates = JSON.parse(localStorage.getItem("linkStates")) || {};
+            let initialStates = {
+                ...savedStates,
+                ...matchData.matches.reduce((acc, match) => {
+                    acc[match.id] = savedStates[match.id] || false;
+                    return acc;
+                }, {}),
+            };
+            
+            matchData.matches.forEach(match => {
+                match.url = null;
+                for (var i = 0; i < youtubeData.items.length; i++){
+                    let video = youtubeData.items[i];
+                    const names = [...match.homeTeam.shortName.split(" "), ...match.awayTeam.shortName.split(" ")]
+                    var flag = false;
+                    names.forEach(word => {
+                        flag |= word.length > 2 && video.snippet.title.includes(word);
+                    })
+                    
+                    const matchDate = new Date(match.utcDate);
+                    const videoDate = new Date(video.snippet.publishedAt);
+                    const diff = Math.abs(matchDate - videoDate) / (1000 * 60 * 60 * 24);
+                    flag &= diff <= 3;
         
-        setLinkStates(initialStates);
+                    if (flag){
+                        const videoId = video.snippet.resourceId.videoId;
+                        match.url = `https://youtube.com/watch?v=${videoId}`;
+                        break;
+                    }
+                } 
+            });   setLinkStates(initialStates);
         }
     }, [matchData, youtubeData])
 
     useEffect(() => {
+        async function getFlags(){
+            if (matchData && matchData.matches.length > 0){
+                for (const match of matchData.matches){
+                    match.homeTeam.flag = null;
+                    match.awayTeam.flag = null;
+                    try {
+                        const homeResponse = await fetch(`${BACKEND_URL}/api/teams/${match.homeTeam.id}`, {
+                            cache: "no-store"  
+                        });
+                        const awayResponse = await fetch(`${BACKEND_URL}/api/teams/${match.awayTeam.id}`, {
+                            cache: "no-store"  
+                        });
+
+                        if (homeResponse.ok){
+                            const homeData = await homeResponse.json()
+                            match.homeTeam.flag = homeData.flag;
+                        }
+                        if (awayResponse.ok){
+                            const awayData = await awayResponse.json()
+                            match.awayTeam.flag = awayData.flag;
+                        }
+                    } catch (err){
+                        console.error("Error fetching data: ", err);
+                    }
+                }
+                setLoading(false);
+            }
+        }
+        getFlags();
+    }, [matchData])
+
+    useEffect(() => {
         if (linkStates){
-        localStorage.setItem("linkStates", JSON.stringify(linkStates));
+            localStorage.setItem("linkStates", JSON.stringify(linkStates));
         }
     }, [linkStates]);
+
 
     if (error){
         return <div className="p-6 text-center text-xl">Too many requests! Please try again later.</div>
     }
-    if (!matchData || !youtubeData || !linkStates){
+    if (loading || !matchData || !youtubeData || !linkStates){
         return <div className="p-6 text-center text-xl">Loading...</div>
     }
-
-    matchData.matches.forEach(match => {
-        match.url = null;
-        for (var i = 0; i < youtubeData.items.length; i++){
-            let video = youtubeData.items[i];
-            const names = [...match.homeTeam.shortName.split(" "), ...match.awayTeam.shortName.split(" ")]
-            var flag = false;
-            names.forEach(word => {
-                flag |= word.length > 2 && video.snippet.title.includes(word);
-            })
-            
-            const matchDate = new Date(match.utcDate);
-            const videoDate = new Date(video.snippet.publishedAt);
-            const diff = Math.abs(matchDate - videoDate) / (1000 * 60 * 60 * 24);
-            flag &= diff <= 3;
-
-            if (flag){
-                const videoId = video.snippet.resourceId.videoId;
-                match.url = `https://youtube.com/watch?v=${videoId}`;
-                break;
-            }
-        } 
-    });
 
     return (
         <div className="flex flex-col space-y-6 p-6">
@@ -150,8 +182,8 @@ export default function Matches( {competition, matchdays, matchday = -1} ) {
                                         team2={match.awayTeam.shortName}
                                         score1="?"
                                         score2="?"
-                                        logo1={match.homeTeam.crest}
-                                        logo2={match.awayTeam.crest}
+                                        logo1={match.homeTeam.flag}
+                                        logo2={match.awayTeam.flag}
                                     />
                                 </a>
                             </div>
@@ -174,8 +206,8 @@ export default function Matches( {competition, matchdays, matchday = -1} ) {
                                         team2={match.awayTeam.shortName}
                                         score1={match.score.fullTime.home}
                                         score2={match.score.fullTime.away}
-                                        logo1={match.homeTeam.crest}
-                                        logo2={match.awayTeam.crest}
+                                        logo1={match.homeTeam.flag}
+                                        logo2={match.awayTeam.flag}
                                     />
                                 </a>
                             </div>
@@ -197,8 +229,8 @@ export default function Matches( {competition, matchdays, matchday = -1} ) {
                                     team2={match.awayTeam.shortName}
                                     score1="?"
                                     score2="?"
-                                    logo1={match.homeTeam.crest}
-                                    logo2={match.awayTeam.crest}
+                                    logo1={match.homeTeam.flag}
+                                    logo2={match.awayTeam.flag}
                                 />
                             </div>
                         )
@@ -219,8 +251,8 @@ export default function Matches( {competition, matchdays, matchday = -1} ) {
                                     team2={match.awayTeam.shortName}
                                     score1="?"
                                     score2="?"
-                                    logo1={match.homeTeam.crest}
-                                    logo2={match.awayTeam.crest}
+                                    logo1={match.homeTeam.flag}
+                                    logo2={match.awayTeam.flag}
                                 />
                             </div>
                         )
