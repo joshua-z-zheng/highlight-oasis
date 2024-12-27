@@ -1,4 +1,5 @@
 Flask
+flask-sqlalchemy
 flask-cors
 requests
 python-dotenv

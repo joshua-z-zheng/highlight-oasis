@@ -1,4 +1,6 @@
 from flask import Flask, jsonify, request
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import text
 import requests
 import os
 import math
@@ -9,6 +11,17 @@ load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
+
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///teams.db"
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+db = SQLAlchemy(app)
+
+class Teams(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    flag = db.Column(db.String, nullable=False)
+
+with app.app_context():
+    db.create_all()
 
 FOOTBALL_API_KEY = os.getenv("FOOTBALL_DATA_API_KEY")
 FOOTBALL_URL = "https://api.football-data.org/v4"
@@ -40,6 +53,37 @@ def fetch_playlist_videos(playlist_id, num_videos):
             break
     
     return videos
+
+def fetch_club_flag(id):
+    headers = {"X-Auth-Token" : FOOTBALL_API_KEY}
+    club_url = f"{FOOTBALL_URL}/teams/{id}"
+
+    try:
+        response = requests.get(club_url, headers=headers)
+        response.raise_for_status()
+        club_data = response.json()
+        flag = club_data.get("area", {}).get("flag")
+        return flag
+    except requests.exceptions.RequestException as e:
+        return None
+
+@app.route("/api/teams/<int:id>", methods=["GET"])
+def get_club_flag(id):
+    entry = db.session.get(Teams, id)
+    if entry:
+        return jsonify({"id": id, "flag": entry.flag}), 200
+    
+    team_flag = fetch_club_flag(id)
+    if not team_flag:
+        return jsonify({"error": "Failed to fetch data"}), 500
+    
+    db.session.execute(
+        text("INSERT OR IGNORE INTO teams (id, flag) VALUES (:id, :flag)"),
+        {"id": id, "flag" : team_flag}
+    )
+    db.session.commit()
+
+    return jsonify({"id": id, "flag": team_flag}), 200
 
 @app.route("/api/matchday_scores", methods=["GET"])
 def matchday_scores():
@@ -98,7 +142,6 @@ def youtube_uploads():
         return jsonify({"items" : playlist_items})
     except requests.exceptions.RequestException as e:
         return jsonify({"error": str(e)}), 500
-    
 
 if __name__ == "__main__":
     app.run(debug=True)
